@@ -25,8 +25,8 @@ OUTPUT_PATH = os.path.join(
 ARCHIVE_BLURB = os.environ.get(
     "DISCOURSE_ARCHIVE_BLURB", f"Archived {date.today():%B}, {date.today():%Y}."
 )
-API_KEY = os.environ.get("DISCOURSE_API_KEY", "027ca05d1dd2dafa18821499696822617b36c4b28fc881c8fcd59521997470bc").strip()
-API_USERNAME = os.environ.get("DISCOURSE_API_USERNAME", "audrey").strip()
+API_KEY = os.environ.get("DISCOURSE_API_KEY", "").strip()
+API_USERNAME = os.environ.get("DISCOURSE_API_USERNAME", "").strip()
 MAX_MORE_TOPICS = int(os.environ.get("DISCOURSE_MAX_PAGES", "99"))
 REQUEST_DELAY_SECONDS = float(os.environ.get("DISCOURSE_REQUEST_DELAY", "1"))
 PROGRESS_EVERY = int(os.environ.get("DISCOURSE_PROGRESS_EVERY", "5"))
