@@ -6,6 +6,58 @@
     <meta name="viewport" content="width=device-width">
     <link rel="stylesheet" href="https://use.fontawesome.com/2374bdec1c.css">
     <link rel="stylesheet" href="./archived.css" />
+    <script>
+      function applyCategoryFilter() {
+        var hash = window.location.hash || "";
+        var selected = "all";
+        if (hash.indexOf("#category=") === 0) {
+          selected = decodeURIComponent(hash.slice("#category=".length));
+        }
+
+        document.querySelectorAll(".category-nav a").forEach(function (link) {
+          var isActive = link.dataset.category === selected;
+          link.setAttribute("aria-current", isActive ? "page" : "false");
+        });
+
+        document.querySelectorAll(".topic-row").forEach(function (row) {
+          var matches = selected === "all" || row.dataset.category === selected;
+          row.hidden = !matches;
+        });
+      }
+
+      function preprocessDiscourseMath() {
+        document.querySelectorAll("span.math, div.math").forEach(function (node) {
+          var tex = node.textContent || "";
+          if (!tex.trim()) {
+            return;
+          }
+          if (node.tagName === "SPAN") {
+            node.textContent = "\\(" + tex + "\\)";
+          } else {
+            node.textContent = "\\[" + tex + "\\]";
+          }
+          node.classList.remove("math");
+        });
+      }
+
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]]
+        },
+        startup: {
+          pageReady() {
+            preprocessDiscourseMath();
+            applyCategoryFilter();
+            return MathJax.startup.defaultPageReady();
+          }
+        }
+      };
+
+      window.addEventListener("hashchange", applyCategoryFilter);
+      window.addEventListener("DOMContentLoaded", applyCategoryFilter);
+    </script>
+    <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
   </head>
 
   <body>
@@ -13,13 +65,15 @@
     <header class="header">
       <div class="title-span">
         <h1 class="site-title">
-          <img src="images/site-logo.png" height="40" alt="<!-- JUST_SITE_TITLE -->" id="site-logo">
+          <!-- SITE_BRANDING -->
         </h1>
       </div>
     </header>
 
     <div class="main">
+      <h1 class="archive-title"><!-- ARCHIVE_TITLE --></h1>
       <div class="archive-span"><!-- ARCHIVE_BLURB --></div>
+      <div class="category-nav">Categories: <!-- CATEGORY_NAV --></div>
       <div class="topics">
         <div class="header-row">
           <span class="topic-head">Topics</span>
