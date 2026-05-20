@@ -376,6 +376,19 @@ div.meta {
     display: none;
 }
 
+.sage-source-hidden {
+    display: none;
+}
+
+.sagecell-archive {
+    margin: 1em 0;
+}
+
+.sagecell-archive .sagecell,
+.sagecell-archive .compute {
+    max-width: 100%;
+}
+
 .archive-footer {
     margin: 32px 0 0 0;
     padding: 20px 0 8px 0;

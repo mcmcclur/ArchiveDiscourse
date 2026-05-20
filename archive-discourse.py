@@ -18,6 +18,11 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
+# It's preferable to set credentials via environment variables,
+# though you can hardcode them here.
+API_KEY = os.environ.get("DISCOURSE_API_KEY", "").strip()
+API_USERNAME = os.environ.get("DISCOURSE_API_USERNAME", "").strip()
+
 BASE_URL = os.environ.get("DISCOURSE_BASE_URL", "https://discourse.marksmath.org").rstrip("/")
 OUTPUT_PATH = os.path.join(
     os.getcwd(), os.environ.get("DISCOURSE_OUTPUT_DIR", "export")
@@ -25,8 +30,6 @@ OUTPUT_PATH = os.path.join(
 ARCHIVE_BLURB = os.environ.get(
     "DISCOURSE_ARCHIVE_BLURB", f"Archived {date.today():%B}, {date.today():%Y}."
 )
-API_KEY = os.environ.get("DISCOURSE_API_KEY", "").strip()
-API_USERNAME = os.environ.get("DISCOURSE_API_USERNAME", "").strip()
 MAX_MORE_TOPICS = int(os.environ.get("DISCOURSE_MAX_PAGES", "99"))
 REQUEST_DELAY_SECONDS = float(os.environ.get("DISCOURSE_REQUEST_DELAY", "1"))
 PROGRESS_EVERY = int(os.environ.get("DISCOURSE_PROGRESS_EVERY", "5"))

@@ -74,6 +74,7 @@ If no API key is set, the script will still run against public content, but priv
 
 - The script uses `/site/basic-info.json` to pick up the site title and configured logo when available.
 - Topic pages and the index include MathJax 4 from jsDelivr and automatically convert Discourse math tags like `<span class="math">...</span>` and `<div class="math">...</div>` into MathJax delimiters before typesetting.
+- Topic pages also enhance cooked fenced code blocks tagged as `sage` into live SageMathCell widgets using the public Sage Cell embed script.
 - `--anonymize-users` replaces displayed post usernames and cooked `@mentions` with stable aliases such as `User 001`.
 - `--preserve-user` keeps selected usernames visible while anonymizing everyone else.
 - Anonymized users get generated letter avatars with stable per-user colors; preserved users keep their original avatars.
