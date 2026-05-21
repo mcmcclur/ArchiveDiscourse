@@ -1,10 +1,20 @@
 # ArchiveDiscourse
 
-Archive a Discourse site into static HTML.
+Archives a Discourse site into static HTML.
 
-Forked and adapted from: https://github.com/mcmcclur/ArchiveDiscourse
+Forked and adapted from: https://github.com/kitsandkats/ArchiveDiscourse  
+which was originally  
+forked and adapted from: https://github.com/mcmcclur/ArchiveDiscourse  
 
-Example archive: https://discuss-learn.media.mit.edu/
+This is so Meta!  
+https://meta.discourse.org/t/a-basic-discourse-archival-tool/62614
+
+## Examples
+
+One of my simple class fora:  
+https://marksmath.org/classes/Spring2026MML/discourse/
+
+
 
 ## Setup
 
@@ -29,7 +39,9 @@ Optional settings:
 ```bash
 export DISCOURSE_OUTPUT_DIR="export"
 export DISCOURSE_ARCHIVE_BLURB="Archived May, 2026."
-export DISCOURSE_MAX_PAGES="99"
+export DISCOURSE_MAX_TOPICS="0"
+export DISCOURSE_MAX_TOPIC_DISPLAY="30"
+export DISCOURSE_DEFAULT_ARCHIVE_BLURB="0"
 export DISCOURSE_REQUEST_DELAY="1"
 export DISCOURSE_PROGRESS_EVERY="5"
 ```
@@ -40,10 +52,32 @@ Run:
 python archive-discourse.py
 ```
 
+Command-line flags can override the corresponding `DISCOURSE_*` environment variables:
+
+```bash
+python archive-discourse.py \
+  --base-url "https://your-discourse.example" \
+  --output-dir "export" \
+  --archive-blurb "Archived May, 2026." \
+  --default-archive-blurb \
+  --api-key "your-api-key" \
+  --api-username "your-archive-user" \
+  --max-topics 0 \
+  --max-topic-display 30 \
+  --request-delay 1 \
+  --progress-every 5
+```
+
 Optional title override:
 
 ```bash
 python archive-discourse.py --title "Discourse forum for Calc III, Spring 2026"
+```
+
+Use the built-in blurb that mentions the source forum URL:
+
+```bash
+python archive-discourse.py --default-archive-blurb
 ```
 
 Optional basic anonymization:
@@ -75,6 +109,11 @@ If no API key is set, the script will still run against public content, but priv
 - The script uses `/site/basic-info.json` to pick up the site title and configured logo when available.
 - Topic pages and the index include MathJax 4 from jsDelivr and automatically convert Discourse math tags like `<span class="math">...</span>` and `<div class="math">...</div>` into MathJax delimiters before typesetting.
 - Topic pages also enhance cooked fenced code blocks tagged as `sage` into live SageMathCell widgets using the public Sage Cell embed script.
+- `DISCOURSE_MAX_TOPICS` / `--max-topics` set an absolute cap on how many topics are archived; `0` means no topic-count cap.
+- `DISCOURSE_MAX_TOPIC_DISPLAY` / `--max-topic-display` control how many topics appear on each generated archive index page; the default is `30`.
+- `DISCOURSE_DEFAULT_ARCHIVE_BLURB` / `--default-archive-blurb` switch to a built-in blurb that mentions the source forum URL.
 - `--anonymize-users` replaces displayed post usernames and cooked `@mentions` with stable aliases such as `User 001`.
 - `--preserve-user` keeps selected usernames visible while anonymizing everyone else.
 - Anonymized users get generated letter avatars with stable per-user colors; preserved users keep their original avatars.
+- When both are provided, command-line flags override the corresponding `DISCOURSE_*` environment variables.
+- `DISCOURSE_ARCHIVE_BLURB` / `--archive-blurb` still override the built-in blurb entirely when set.

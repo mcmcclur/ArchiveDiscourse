@@ -18,6 +18,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
+DEFAULT_ARCHIVE_BLURB = f"Archived {date.today():%B}, {date.today():%Y}."
+
 # It's preferable to set credentials via environment variables,
 # though you can hardcode them here.
 API_KEY = os.environ.get("DISCOURSE_API_KEY", "").strip()
@@ -28,21 +30,12 @@ OUTPUT_PATH = os.path.join(
     os.getcwd(), os.environ.get("DISCOURSE_OUTPUT_DIR", "export")
 )
 ARCHIVE_BLURB = os.environ.get(
-    "DISCOURSE_ARCHIVE_BLURB", f"Archived {date.today():%B}, {date.today():%Y}."
+    "DISCOURSE_ARCHIVE_BLURB", DEFAULT_ARCHIVE_BLURB
 )
-MAX_MORE_TOPICS = int(os.environ.get("DISCOURSE_MAX_PAGES", "99"))
+MAX_TOPICS = int(os.environ.get("DISCOURSE_MAX_TOPICS", "0"))
+MAX_TOPIC_DISPLAY = int(os.environ.get("DISCOURSE_MAX_TOPIC_DISPLAY", "30"))
 REQUEST_DELAY_SECONDS = float(os.environ.get("DISCOURSE_REQUEST_DELAY", "1"))
 PROGRESS_EVERY = int(os.environ.get("DISCOURSE_PROGRESS_EVERY", "5"))
-
-if API_USERNAME and not API_KEY:
-    raise RuntimeError(
-        "Set DISCOURSE_API_KEY when using DISCOURSE_API_USERNAME."
-    )
-
-if API_KEY and not API_USERNAME:
-    raise RuntimeError(
-        "Set DISCOURSE_API_USERNAME when using DISCOURSE_API_KEY."
-    )
 
 
 with open("templates/main.html", "r", encoding="utf-8") as main_file:
@@ -62,6 +55,15 @@ ANONYMIZE_USERS = False
 PRESERVED_USERNAMES = set()
 USER_ALIASES = {}
 ANONYMIZED_AVATAR_FILES = {}
+
+
+def build_default_archive_blurb(include_forum_url=False):
+    if include_forum_url:
+        return (
+            f'Archived from <a href="{html.escape(BASE_URL)}">{html.escape(BASE_URL)}</a> '
+            f"in {date.today():%B}, {date.today():%Y}."
+        )
+    return DEFAULT_ARCHIVE_BLURB
 
 MISSING_IMAGE_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180" role="img" aria-label="Missing image">
   <rect width="320" height="180" fill="#f4f4f4"/>
@@ -111,6 +113,60 @@ def parse_args():
         help="Override the displayed title for the archived site.",
     )
     parser.add_argument(
+        "--base-url",
+        dest="base_url",
+        help="Override DISCOURSE_BASE_URL.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        dest="output_dir",
+        help="Override DISCOURSE_OUTPUT_DIR.",
+    )
+    parser.add_argument(
+        "--archive-blurb",
+        dest="archive_blurb",
+        help="Override DISCOURSE_ARCHIVE_BLURB.",
+    )
+    parser.add_argument(
+        "--default-archive-blurb",
+        action="store_true",
+        help="Use the built-in archive blurb that mentions the source forum URL.",
+    )
+    parser.add_argument(
+        "--api-key",
+        dest="api_key",
+        help="Override DISCOURSE_API_KEY.",
+    )
+    parser.add_argument(
+        "--api-username",
+        dest="api_username",
+        help="Override DISCOURSE_API_USERNAME.",
+    )
+    parser.add_argument(
+        "--max-topics",
+        dest="max_topics",
+        type=int,
+        help="Override DISCOURSE_MAX_TOPICS. Use 0 for no absolute topic limit.",
+    )
+    parser.add_argument(
+        "--max-topic-display",
+        dest="max_topic_display",
+        type=int,
+        help="Override DISCOURSE_MAX_TOPIC_DISPLAY.",
+    )
+    parser.add_argument(
+        "--request-delay",
+        dest="request_delay",
+        type=float,
+        help="Override DISCOURSE_REQUEST_DELAY.",
+    )
+    parser.add_argument(
+        "--progress-every",
+        dest="progress_every",
+        type=int,
+        help="Override DISCOURSE_PROGRESS_EVERY.",
+    )
+    parser.add_argument(
         "--anonymize-users",
         action="store_true",
         help="Replace displayed usernames and @mentions with stable aliases.",
@@ -123,6 +179,56 @@ def parse_args():
         help="Username to leave unanonymized. May be repeated or passed as a comma-separated list.",
     )
     return parser.parse_args()
+
+
+def configure_from_args(args):
+    global API_KEY
+    global API_USERNAME
+    global BASE_URL
+    global OUTPUT_PATH
+    global ARCHIVE_BLURB
+    global MAX_TOPICS
+    global MAX_TOPIC_DISPLAY
+    global REQUEST_DELAY_SECONDS
+    global PROGRESS_EVERY
+    global BASE_SCHEME
+    global SESSION
+
+    if args.api_key is not None:
+        API_KEY = args.api_key.strip()
+    if args.api_username is not None:
+        API_USERNAME = args.api_username.strip()
+    if args.base_url:
+        BASE_URL = args.base_url.rstrip("/")
+    if args.output_dir:
+        OUTPUT_PATH = os.path.join(os.getcwd(), args.output_dir)
+    use_default_archive_blurb = args.default_archive_blurb or os.environ.get(
+        "DISCOURSE_DEFAULT_ARCHIVE_BLURB", ""
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    ARCHIVE_BLURB = build_default_archive_blurb(use_default_archive_blurb)
+    if args.archive_blurb is not None:
+        ARCHIVE_BLURB = args.archive_blurb
+    if args.max_topics is not None:
+        MAX_TOPICS = args.max_topics
+    if args.max_topic_display is not None:
+        MAX_TOPIC_DISPLAY = args.max_topic_display
+    if args.request_delay is not None:
+        REQUEST_DELAY_SECONDS = args.request_delay
+    if args.progress_every is not None:
+        PROGRESS_EVERY = args.progress_every
+
+    if API_USERNAME and not API_KEY:
+        raise RuntimeError(
+            "Set DISCOURSE_API_KEY or pass --api-key when using DISCOURSE_API_USERNAME or --api-username."
+        )
+
+    if API_KEY and not API_USERNAME:
+        raise RuntimeError(
+            "Set DISCOURSE_API_USERNAME or pass --api-username when using DISCOURSE_API_KEY or --api-key."
+        )
+
+    BASE_SCHEME = urlparse(BASE_URL).scheme
+    SESSION = build_session()
 
 
 def resolve_url(url):
@@ -249,8 +355,17 @@ def build_category_nav(category_names):
 
 
 def fetch_categories():
+    categories = {}
+
+    def collect(category_list):
+        for category in category_list:
+            categories[category["id"]] = category["name"]
+            if category.get("subcategory_list"):
+                collect(category["subcategory_list"])
+
     category_json = get_json("/categories.json")["category_list"]["categories"]
-    return {category["id"]: category["name"] for category in category_json}
+    collect(category_json)
+    return categories
 
 
 def normalize_username(username):
@@ -517,6 +632,97 @@ def write_topic(topic_json, site_title, archive_blurb, topic_branding_markup):
         output_file.write(topic_file_string)
 
 
+def should_stop_downloading_topics(downloaded_topics):
+    return MAX_TOPICS > 0 and downloaded_topics >= MAX_TOPICS
+
+
+def page_filename(page_number):
+    return "index.html" if page_number == 1 else f"page-{page_number}.html"
+
+
+def build_pagination_nav(current_page, total_pages):
+    if total_pages <= 1:
+        return ""
+
+    links = []
+    for page_number in range(1, total_pages + 1):
+        if page_number == current_page:
+            links.append(
+                f'<span class="pagination-link current" aria-current="page">{page_number}</span>'
+            )
+        else:
+            links.append(
+                f'<a class="pagination-link" href="{page_filename(page_number)}">{page_number}</a>'
+            )
+
+    return (
+        '<nav class="pagination-nav" aria-label="Topic pages">'
+        + "".join(links)
+        + "</nav>"
+    )
+
+
+def write_index_pages(
+    topic_rows,
+    display_title,
+    archive_blurb,
+    category_names,
+    main_branding_markup,
+):
+    page_size = max(1, MAX_TOPIC_DISPLAY)
+    total_pages = max(1, (len(topic_rows) + page_size - 1) // page_size)
+
+    for current_page in range(1, total_pages + 1):
+        start = (current_page - 1) * page_size
+        end = start + page_size
+        page_topic_rows = "".join(topic_rows[start:end])
+        pagination_nav = build_pagination_nav(current_page, total_pages)
+
+        file_string = (
+            MAIN_TEMPLATE.replace(
+                "<!-- TITLE -->", f"<title>{html.escape(display_title)}</title>"
+            )
+            .replace("<!-- JUST_SITE_TITLE -->", html.escape(display_title))
+            .replace("<!-- ARCHIVE_BLURB -->", archive_blurb)
+            .replace("<!-- ARCHIVE_TITLE -->", html.escape(display_title))
+            .replace("<!-- CATEGORY_NAV -->", build_category_nav(category_names))
+            .replace("<!-- PAGE_NAV_TOP -->", pagination_nav)
+            .replace("<!-- TOPIC_LIST -->", page_topic_rows)
+            .replace("<!-- PAGE_NAV_BOTTOM -->", pagination_nav)
+            .replace("<!-- SITE_BRANDING -->", main_branding_markup)
+        )
+
+        with open(page_filename(current_page), "w", encoding="utf-8") as output_file:
+            output_file.write(file_string)
+
+
+def process_topic_list(
+    topic_list,
+    topic_rows,
+    used_category_names,
+    downloaded_topics,
+    site_title,
+    category_id_to_name,
+    topic_branding_markup,
+):
+    for topic in topic_list:
+        if should_stop_downloading_topics(downloaded_topics):
+            break
+        try:
+            write_topic(topic, site_title, ARCHIVE_BLURB, topic_branding_markup)
+            topic_rows.append(topic_row(topic, category_id_to_name))
+            topic_category = category_id_to_name.get(topic.get("category_id"), "")
+            if topic_category:
+                used_category_names.add(topic_category)
+            downloaded_topics += 1
+            if PROGRESS_EVERY > 0 and downloaded_topics % PROGRESS_EVERY == 0:
+                print(f"Downloaded {downloaded_topics} topics")
+        except Exception as err:
+            print("write_topic error", topic.get("slug"), repr(err))
+        sleep(REQUEST_DELAY_SECONDS)
+    return topic_rows, used_category_names, downloaded_topics
+
+
 def topic_row(topic_json, category_id_to_name):
     topic_url = f"t/{topic_json['slug']}/{topic_json['id']}"
     topic_title_text = topic_json["fancy_title"]
@@ -544,6 +750,7 @@ def main():
     global ANONYMIZE_USERS
     global PRESERVED_USERNAMES
     args = parse_args()
+    configure_from_args(args)
     ANONYMIZE_USERS = args.anonymize_users
     PRESERVED_USERNAMES = build_preserved_usernames(args.preserved_users)
 
@@ -561,7 +768,7 @@ def main():
     category_id_to_name = fetch_categories()
     site_title, site_logo_url = get_site_metadata()
     display_title = args.archive_title or site_title
-    category_names = sorted(set(category_id_to_name.values()), key=str.lower)
+    used_category_names = set()
 
     site_logo_filename = None
     if site_logo_url:
@@ -575,55 +782,47 @@ def main():
         display_title, site_logo_filename, topic_page=True
     )
 
-    cnt = 0
-    topic_list_string = ""
+    page_number = 0
+    topic_rows = []
     downloaded_topics = 0
-    response = get_json(f"/latest.json?no_definitions=true&page={cnt}")
+    response = get_json(f"/latest.json?no_definitions=true&page={page_number}")
     topic_list = response["topic_list"]["topics"]
     print("Initiating downloads...")
 
-    for topic in topic_list:
-        try:
-            write_topic(topic, site_title, ARCHIVE_BLURB, topic_branding_markup)
-            topic_list_string += topic_row(topic, category_id_to_name)
-            downloaded_topics += 1
-            if PROGRESS_EVERY > 0 and downloaded_topics % PROGRESS_EVERY == 0:
-                print(f"Downloaded {downloaded_topics} topics")
-        except Exception as err:
-            print("write_topic error", topic.get("slug"), repr(err))
-        sleep(REQUEST_DELAY_SECONDS)
-
-    while "more_topics_url" in response["topic_list"] and cnt < MAX_MORE_TOPICS:
-        print("cnt is", cnt, "\n============")
-        cnt += 1
-        response = get_json(f"/latest.json?no_definitions=true&page={cnt}")
-        topic_list = response["topic_list"]["topics"]
-
-        for topic in topic_list[1:]:
-            try:
-                topic_list_string += topic_row(topic, category_id_to_name)
-                write_topic(topic, site_title, ARCHIVE_BLURB, topic_branding_markup)
-                downloaded_topics += 1
-                if PROGRESS_EVERY > 0 and downloaded_topics % PROGRESS_EVERY == 0:
-                    print(f"Downloaded {downloaded_topics} topics")
-            except Exception as err:
-                print("write_topic error", topic.get("slug"), repr(err))
-            sleep(REQUEST_DELAY_SECONDS)
-
-    file_string = (
-        MAIN_TEMPLATE.replace(
-            "<!-- TITLE -->", f"<title>{html.escape(display_title)}</title>"
-        )
-        .replace("<!-- JUST_SITE_TITLE -->", html.escape(display_title))
-        .replace("<!-- ARCHIVE_BLURB -->", ARCHIVE_BLURB)
-        .replace("<!-- ARCHIVE_TITLE -->", html.escape(display_title))
-        .replace("<!-- CATEGORY_NAV -->", build_category_nav(category_names))
-        .replace("<!-- TOPIC_LIST -->", topic_list_string)
-        .replace("<!-- SITE_BRANDING -->", main_branding_markup)
+    topic_rows, used_category_names, downloaded_topics = process_topic_list(
+        topic_list,
+        topic_rows,
+        used_category_names,
+        downloaded_topics,
+        site_title,
+        category_id_to_name,
+        topic_branding_markup,
     )
 
-    with open("index.html", "w", encoding="utf-8") as output_file:
-        output_file.write(file_string)
+    while "more_topics_url" in response["topic_list"] and not should_stop_downloading_topics(downloaded_topics):
+        page_number += 1
+        response = get_json(f"/latest.json?no_definitions=true&page={page_number}")
+        topic_list = response["topic_list"]["topics"]
+
+        topic_rows, used_category_names, downloaded_topics = process_topic_list(
+            topic_list[1:],
+            topic_rows,
+            used_category_names,
+            downloaded_topics,
+            site_title,
+            category_id_to_name,
+            topic_branding_markup,
+        )
+
+    category_names = sorted(used_category_names, key=str.lower)
+
+    write_index_pages(
+        topic_rows,
+        display_title,
+        ARCHIVE_BLURB,
+        category_names,
+        main_branding_markup,
+    )
 
     with open("archived.css", "w", encoding="utf-8") as output_file:
         output_file.write(CSS)

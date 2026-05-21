@@ -2,4 +2,4 @@ export/
 .env
 .DS_Store
 APIKey.txt
-
+__pycache__/**

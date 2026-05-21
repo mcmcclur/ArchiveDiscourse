@@ -376,6 +376,28 @@ div.meta {
     display: none;
 }
 
+.pagination-nav {
+    margin: 18px 0;
+    text-align: center;
+}
+
+.pagination-link {
+    display: inline-block;
+    min-width: 1.5em;
+    margin: 0 0.2em;
+    padding: 0.2em 0.5em;
+    border: 1px solid #d8d8d8;
+    border-radius: 4px;
+    text-decoration: none;
+    background: #fafafa;
+}
+
+.pagination-link.current {
+    background: #e6f5fa;
+    border-color: #b7dcea;
+    font-weight: 700;
+}
+
 .sage-source-hidden {
     display: none;
 }

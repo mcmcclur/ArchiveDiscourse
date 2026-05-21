@@ -23,6 +23,11 @@
           var matches = selected === "all" || row.dataset.category === selected;
           row.hidden = !matches;
         });
+
+        document.querySelectorAll(".pagination-link[href]").forEach(function (link) {
+          var baseHref = link.getAttribute("href").split("#")[0];
+          link.setAttribute("href", selected === "all" ? baseHref : baseHref + hash);
+        });
       }
 
       function preprocessDiscourseMath() {
@@ -74,6 +79,7 @@
       <h1 class="archive-title"><!-- ARCHIVE_TITLE --></h1>
       <div class="archive-span"><!-- ARCHIVE_BLURB --></div>
       <div class="category-nav">Categories: <!-- CATEGORY_NAV --></div>
+      <!-- PAGE_NAV_TOP -->
       <div class="topics">
         <div class="header-row">
           <span class="topic-head">Topics</span>
@@ -82,6 +88,7 @@
         </div>
         <!-- TOPIC_LIST -->
       </div>
+      <!-- PAGE_NAV_BOTTOM -->
       <footer class="archive-footer">
         <a href="https://discourse.org">Discourse</a> forum -- Archived by <a href="https://github.com/mcmcclur/ArchiveDiscourse">Archive Discourse</a>
       </footer>
