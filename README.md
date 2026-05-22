@@ -2,7 +2,7 @@
 
 Archives a Discourse site into static HTML.
 
-Forked and adapted from: https://github.com/kitsandkats/ArchiveDiscourse  
+Forked and adapted using Codex from: https://github.com/kitsandkats/ArchiveDiscourse  
 which was originally  
 forked and adapted from: https://github.com/mcmcclur/ArchiveDiscourse  
 
@@ -14,11 +14,25 @@ https://meta.discourse.org/t/a-basic-discourse-archival-tool/62614
 One of my simple class fora:  
 https://marksmath.org/classes/Spring2026MML/discourse/
 
+And Discourse Meta:  
+https://marksmath.org/share/discourse/
 
 
-## Setup
+## Comments
 
-Install dependencies:
+Some version or another of this repo has been frequently referred to as a useful tool for archiving general discourse sites. Be aware though that
+
+- the recent enhancement have been largely created with Codex and
+- my primary objectives have largely been centered on my own use case as a class discussion forum for university level mathematics.
+
+There are a couple of specific features of the archiver that are of interest for mathematics:
+
+- mathematical content is automatically typeset with MathJax V4, [as described here](https://marksmath.org/classes/Spring2026MML/discourse/t/how-do-i-enter-groovy-typeset-mathematics-into-discourse/18/) and
+- fenced code blocks tagged as `sage` are translated to active Sage Cells, [as described here](https://marksmath.org/classes/Spring2026MML/discourse/t/sage-cells/172/).
+
+## Installation and basic usage
+
+If you fork this directory and cd into it, you can install the requirements like so:
 
 ```bash
 python -m venv .venv
@@ -26,94 +40,44 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Set configuration with environment variables:
+Once installed, you could archive recent activity on Discourse Meta like so:
 
-```bash
-export DISCOURSE_BASE_URL="https://your-discourse.example"
-export DISCOURSE_API_KEY="1d6340b8ec5aea07bd3ceff3b4e8f682f96c8091a95e3e1f12b4623ca2b4597a"
-export DISCOURSE_API_USERNAME="your-archive-user"
-```
+    python archive-discourse.py --base-url=https://meta.discourse.org/ --max-topics=100
 
-Optional settings:
+I've never tried to archive all of a huge form like this and am unsure what would happen.
 
-```bash
-export DISCOURSE_OUTPUT_DIR="export"
-export DISCOURSE_ARCHIVE_BLURB="Archived May, 2026."
-export DISCOURSE_MAX_TOPICS="0"
-export DISCOURSE_MAX_TOPIC_DISPLAY="30"
-export DISCOURSE_DEFAULT_ARCHIVE_BLURB="0"
-export DISCOURSE_REQUEST_DELAY="1"
-export DISCOURSE_PROGRESS_EVERY="5"
-```
 
-Run:
+## Options and environment variables
 
-```bash
-python archive-discourse.py
-```
-
-Command-line flags can override the corresponding `DISCOURSE_*` environment variables:
+In lieu of proper documentation, here's an illustration of the kinds of options that are available:
 
 ```bash
 python archive-discourse.py \
-  --base-url "https://your-discourse.example" \
-  --output-dir "export" \
-  --archive-blurb "Archived May, 2026." \
-  --default-archive-blurb \
   --api-key "your-api-key" \
   --api-username "your-archive-user" \
-  --max-topics 0 \
+  --base-url "https://your-discourse.example" \
+  --output-dir "export" \
+  --archive-blurb "My groovy forum archived May, 2026." \
+  --max-topics 1000 \
   --max-topic-display 30 \
   --request-delay 1 \
   --progress-every 5
 ```
 
-Optional title override:
+Generally, there are reasonable defaults for these and the default values can be set with environment variables. Thus, I could put the following in a .profile:
 
 ```bash
-python archive-discourse.py --title "Discourse forum for Calc III, Spring 2026"
+export DISCOURSE_API_USERNAME="my_name"
+export DISCOURSE_API_KEY="my_api_key"
+export DISCOURSE_BASE_URL="https://discourse.mysite.org/"
 ```
 
-Use the built-in blurb that mentions the source forum URL:
+Then, I can just run the command 
 
 ```bash
-python archive-discourse.py --default-archive-blurb
+python archive-discourse.py
 ```
 
-Optional basic anonymization:
+Of course, this is particularly convenient for dealing with API keys.
 
-```bash
-python archive-discourse.py --anonymize-users
-```
 
-Preserve selected usernames while anonymizing everyone else:
-
-```bash
-python archive-discourse.py --anonymize-users --preserve-user audrey --preserve-user alice,bob
-```
-
-## API key recommendations
-
-For a public repo, do not store credentials in `archive-discourse.py`.
-
-- Use a dedicated Discourse account for archiving.
-- Generate a `Single User` API key for that account.
-- Prefer a `Read-only` key unless you need broader access.
-- Keep secrets in environment variables or an untracked `.env` file.
-- Rotate the key if it is ever exposed.
-
-If no API key is set, the script will still run against public content, but private categories and topics will not be included.
-
-## Notes
-
-- The script uses `/site/basic-info.json` to pick up the site title and configured logo when available.
-- Topic pages and the index include MathJax 4 from jsDelivr and automatically convert Discourse math tags like `<span class="math">...</span>` and `<div class="math">...</div>` into MathJax delimiters before typesetting.
-- Topic pages also enhance cooked fenced code blocks tagged as `sage` into live SageMathCell widgets using the public Sage Cell embed script.
-- `DISCOURSE_MAX_TOPICS` / `--max-topics` set an absolute cap on how many topics are archived; `0` means no topic-count cap.
-- `DISCOURSE_MAX_TOPIC_DISPLAY` / `--max-topic-display` control how many topics appear on each generated archive index page; the default is `30`.
-- `DISCOURSE_DEFAULT_ARCHIVE_BLURB` / `--default-archive-blurb` switch to a built-in blurb that mentions the source forum URL.
-- `--anonymize-users` replaces displayed post usernames and cooked `@mentions` with stable aliases such as `User 001`.
-- `--preserve-user` keeps selected usernames visible while anonymizing everyone else.
-- Anonymized users get generated letter avatars with stable per-user colors; preserved users keep their original avatars.
-- When both are provided, command-line flags override the corresponding `DISCOURSE_*` environment variables.
-- `DISCOURSE_ARCHIVE_BLURB` / `--archive-blurb` still override the built-in blurb entirely when set.
