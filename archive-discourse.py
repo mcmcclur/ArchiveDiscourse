@@ -32,7 +32,7 @@ OUTPUT_PATH = os.path.join(
 ARCHIVE_BLURB = os.environ.get(
     "DISCOURSE_ARCHIVE_BLURB", DEFAULT_ARCHIVE_BLURB
 )
-MAX_TOPICS = int(os.environ.get("DISCOURSE_MAX_TOPICS", "0"))
+MAX_TOPICS = int(os.environ.get("DISCOURSE_MAX_TOPICS", "100"))
 MAX_TOPIC_DISPLAY = int(os.environ.get("DISCOURSE_MAX_TOPIC_DISPLAY", "30"))
 REQUEST_DELAY_SECONDS = float(os.environ.get("DISCOURSE_REQUEST_DELAY", "1"))
 PROGRESS_EVERY = int(os.environ.get("DISCOURSE_PROGRESS_EVERY", "5"))
